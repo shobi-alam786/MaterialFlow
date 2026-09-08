@@ -75,6 +75,46 @@ class ProjectRepository(
         projectDao.getProjectByDrrCode(drrCode.trim())
     }
 
+    /**
+     * Manually creates a Project. This is a stand-in for real Kobo project-form sync (not yet
+     * built — see Batch 1/2 assumptions: field names for that form haven't been shared). Lets
+     * Engineer/Boss/TM/Warehouse/Gate be tested end-to-end without waiting on that integration.
+     */
+    suspend fun createProject(
+        drrCode: String,
+        projectType: String,
+        tmName: String,
+        projectLocation: String,
+        block: String
+    ): Result<Project> = withContext(Dispatchers.IO) {
+        val cleanDrrCode = drrCode.trim()
+        if (cleanDrrCode.isBlank()) {
+            return@withContext Result.failure(IllegalArgumentException("DRR Code is required."))
+        }
+        if (projectType.isBlank() || tmName.isBlank()) {
+            return@withContext Result.failure(IllegalArgumentException("Project type and TM name are required."))
+        }
+        if (projectDao.getProjectByDrrCode(cleanDrrCode) != null) {
+            return@withContext Result.failure(IllegalStateException("A project with DRR '$cleanDrrCode' already exists."))
+        }
+        val project = Project(
+            drrCode = cleanDrrCode,
+            projectType = projectType.trim(),
+            tmName = tmName.trim(),
+            projectLocation = projectLocation.trim(),
+            block = block.trim(),
+            status = "PLANNED"
+        )
+        val id = projectDao.insertProject(project)
+        logAudit(
+            action = "PROJECT_CREATED",
+            details = "Created project '${projectType.trim()}' for TM ${tmName.trim()}",
+            user = tmName.trim(),
+            projectId = id
+        )
+        Result.success(project.copy(id = id))
+    }
+
     // --- Project balance / status (spec sections 18-19) ---
 
     suspend fun getProjectFullDetails(projectId: Long): ProjectFullDetails? = withContext(Dispatchers.IO) {

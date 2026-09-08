@@ -65,6 +65,12 @@ fun EngineerEstimateScreen(
     var project by remember { mutableStateOf<Project?>(null) }
     var lookupError by remember { mutableStateOf<String?>(null) }
     var isLookingUp by remember { mutableStateOf(false) }
+    var showCreateForm by remember { mutableStateOf(false) }
+    var newProjectType by remember { mutableStateOf("") }
+    var newTmName by remember { mutableStateOf("") }
+    var newProjectLocation by remember { mutableStateOf("") }
+    var newBlock by remember { mutableStateOf("") }
+    var createError by remember { mutableStateOf<String?>(null) }
 
     var engineerName by remember { mutableStateOf("") }
     var visitDate by remember { mutableStateOf(todayDateString()) }
@@ -83,12 +89,14 @@ fun EngineerEstimateScreen(
         }
         isLookingUp = true
         lookupError = null
+        showCreateForm = false
         scope.launch {
             val found = viewModel.repository.getProjectByDrrCode(code)
             isLookingUp = false
             if (found == null) {
                 project = null
                 lookupError = "No project found for DRR '$code'. It may not be synced from Kobo yet."
+                showCreateForm = true
             } else {
                 project = found
             }
@@ -128,6 +136,79 @@ fun EngineerEstimateScreen(
                     lookupError?.let {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (showCreateForm) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Create this project manually (stand-in until Kobo project sync is wired up):",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = newProjectType,
+                            onValueChange = { newProjectType = it },
+                            label = { Text("Project Type") },
+                            placeholder = { Text("e.g. Brick Guide Wall") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = newTmName,
+                            onValueChange = { newTmName = it },
+                            label = { Text("TM Name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = newProjectLocation,
+                            onValueChange = { newProjectLocation = it },
+                            label = { Text("Project Location") },
+                            placeholder = { Text("e.g. Camp 13") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = newBlock,
+                            onValueChange = { newBlock = it },
+                            label = { Text("Block") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        createError?.let {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                if (newProjectType.isBlank() || newTmName.isBlank()) {
+                                    createError = "Project type and TM name are required."
+                                    return@Button
+                                }
+                                createError = null
+                                viewModel.createProject(
+                                    drrCode = drrCode,
+                                    projectType = newProjectType,
+                                    tmName = newTmName,
+                                    projectLocation = newProjectLocation,
+                                    block = newBlock
+                                ) { created ->
+                                    if (created != null) {
+                                        project = created
+                                        lookupError = null
+                                        showCreateForm = false
+                                    }
+                                }
+                            },
+                            enabled = !isBusy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Create Project")
+                        }
                     }
                     project?.let { p ->
                         Spacer(modifier = Modifier.height(10.dp))

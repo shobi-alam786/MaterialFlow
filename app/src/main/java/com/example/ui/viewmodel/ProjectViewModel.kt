@@ -129,6 +129,26 @@ class ProjectViewModel(application: Application) : AndroidViewModel(application)
 
     suspend fun getProjectById(projectId: Long): Project? = projectDao.getProjectById(projectId)
 
+    fun createProject(
+        drrCode: String,
+        projectType: String,
+        tmName: String,
+        projectLocation: String,
+        block: String,
+        onDone: (Project?) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isBusy.value = true
+            val result = repository.createProject(drrCode, projectType, tmName, projectLocation, block)
+            _isBusy.value = false
+            _userNotice.value = result.fold(
+                onSuccess = { "Project created." },
+                onFailure = { it.message ?: "Could not create the project." }
+            )
+            onDone(result.getOrNull())
+        }
+    }
+
     fun submitEngineerEstimate(
         projectId: Long,
         engineerName: String,
