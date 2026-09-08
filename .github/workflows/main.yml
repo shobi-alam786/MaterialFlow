@@ -1,52 +1,43 @@
-name: Build Android APK
+name: Diagnose cleanQty
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
-  build:
-    name: Build Debug APK
+  diagnose:
+    name: Find duplicate cleanQty
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Install Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Gradle 8.9
-        run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
-          unzip -q gradle-8.9-bin.zip
-          echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
-
-      # ---------------------------------------------------------
-      # DIAGNOSTIC: Find duplicate cleanQty declarations
-      # ---------------------------------------------------------
-      - name: Diagnose cleanQty declarations
+      - name: Show commit
         run: |
           echo "=========================================="
-          echo "SEARCHING FOR cleanQty DECLARATIONS"
+          echo "CURRENT COMMIT"
+          echo "=========================================="
+          git rev-parse HEAD
+          git status
+
+      - name: Find cleanQty declarations
+        run: |
+          echo "=========================================="
+          echo "ALL cleanQty DECLARATIONS"
           echo "=========================================="
 
           grep -RIn \
             --include="*.kt" \
-            -E 'fun[[:space:]]+cleanQty' \
+            -E '(^|[^A-Za-z0-9_])fun[[:space:]]+cleanQty[[:space:]]*\(' \
             . || true
 
-          echo ""
+      - name: Find all cleanQty text
+        run: |
           echo "=========================================="
-          echo "SEARCHING FOR ALL cleanQty REFERENCES"
+          echo "ALL cleanQty REFERENCES"
           echo "=========================================="
 
           grep -RIn \
@@ -54,42 +45,38 @@ jobs:
             'cleanQty' \
             app/src || true
 
-          echo ""
+      - name: Find ReportsScreen files
+        run: |
           echo "=========================================="
-          echo "SEARCHING FOR ReportsScreen.kt COPIES"
+          echo "ALL ReportsScreen.kt FILES"
           echo "=========================================="
 
           find . -type f -name "ReportsScreen.kt" -print
 
-          echo ""
-          echo "=========================================="
-          echo "SEARCHING ALL KOTLIN SOURCE DIRECTORIES"
-          echo "=========================================="
-
-          find app/src -type f -name "*.kt" -print | sort
-
-          echo ""
-          echo "=========================================="
-          echo "PACKAGE DECLARATIONS USING com.example.ui.screens"
-          echo "=========================================="
-
-          grep -RIn \
-            --include="*.kt" \
-            '^package[[:space:]]\+com\.example\.ui\.screens' \
-            app/src || true
-
-      # ---------------------------------------------------------
-      # Build
-      # ---------------------------------------------------------
-      - name: Build Debug APK
+      - name: Show ReportsScreen cleanQty area
         run: |
-          gradle assembleDebug --stacktrace
+          echo "=========================================="
+          echo "REPORTSSCREEN AROUND cleanQty"
+          echo "=========================================="
 
-      # ---------------------------------------------------------
-      # Upload APK
-      # ---------------------------------------------------------
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: MaterialFlow-debug
-          path: app/build/outputs/apk/debug/*.apk
+          grep -n -B 10 -A 20 \
+            'cleanQty' \
+            app/src/main/java/com/example/ui/screens/ReportsScreen.kt || true
+
+      - name: Find duplicate function signatures
+        run: |
+          echo "=========================================="
+          echo "EVERY Kotlin FILE CONTAINING cleanQty"
+          echo "=========================================="
+
+          find . -type f -name "*.kt" -print0 |
+          xargs -0 grep -nH \
+            'fun cleanQty' || true
+
+      - name: List source tree
+        run: |
+          echo "=========================================="
+          echo "KOTLIN SOURCE TREE"
+          echo "=========================================="
+
+          find app/src -type f -name "*.kt" | sort
