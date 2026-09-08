@@ -1588,23 +1588,3 @@ private fun dateStrToMillis(
         null
     }
 }
-
-// =============================================================
-// ONLY ONE cleanQty FUNCTION
-// =============================================================
-
-private fun cleanQty(
-    value: Double
-): String =
-
-    if (
-        value ==
-        value.toLong().toDouble()
-    ) {
-
-        value.toLong().toString()
-
-    } else {
-
-        value.toString()
-    }
