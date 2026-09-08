@@ -1,11 +1,10 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:
-
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,26 +15,81 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Check Gradle
-        run: gradle --version
+      - name: Install Gradle 8.9
+        run: |
+          wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip
+          unzip -q gradle-8.9-bin.zip
+          echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
 
-      - name: Build APK
-        run: gradle assembleDebug --stacktrace
+      # ---------------------------------------------------------
+      # DIAGNOSTIC: Find duplicate cleanQty declarations
+      # ---------------------------------------------------------
+      - name: Diagnose cleanQty declarations
+        run: |
+          echo "=========================================="
+          echo "SEARCHING FOR cleanQty DECLARATIONS"
+          echo "=========================================="
 
-      - name: Upload APK
+          grep -RIn \
+            --include="*.kt" \
+            -E 'fun[[:space:]]+cleanQty' \
+            . || true
+
+          echo ""
+          echo "=========================================="
+          echo "SEARCHING FOR ALL cleanQty REFERENCES"
+          echo "=========================================="
+
+          grep -RIn \
+            --include="*.kt" \
+            'cleanQty' \
+            app/src || true
+
+          echo ""
+          echo "=========================================="
+          echo "SEARCHING FOR ReportsScreen.kt COPIES"
+          echo "=========================================="
+
+          find . -type f -name "ReportsScreen.kt" -print
+
+          echo ""
+          echo "=========================================="
+          echo "SEARCHING ALL KOTLIN SOURCE DIRECTORIES"
+          echo "=========================================="
+
+          find app/src -type f -name "*.kt" -print | sort
+
+          echo ""
+          echo "=========================================="
+          echo "PACKAGE DECLARATIONS USING com.example.ui.screens"
+          echo "=========================================="
+
+          grep -RIn \
+            --include="*.kt" \
+            '^package[[:space:]]\+com\.example\.ui\.screens' \
+            app/src || true
+
+      # ---------------------------------------------------------
+      # Build
+      # ---------------------------------------------------------
+      - name: Build Debug APK
+        run: |
+          gradle assembleDebug --stacktrace
+
+      # ---------------------------------------------------------
+      # Upload APK
+      # ---------------------------------------------------------
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: CFW-Materials-Tracker-debug
+          name: MaterialFlow-debug
           path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
