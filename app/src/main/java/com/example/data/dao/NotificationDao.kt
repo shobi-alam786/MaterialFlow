@@ -18,14 +18,6 @@ interface NotificationDao {
     @Query("SELECT * FROM app_notification WHERE targetRole = :role ORDER BY createdAt DESC")
     fun getNotificationsForRole(role: String): Flow<List<AppNotification>>
 
-    /**
-     * All notifications regardless of role. Used until the app has real per-device/per-user
-     * login (see Batch 1 assumptions) — until then, everyone shares one device's notification
-     * feed, so a single unified list is more useful than role-siloed ones nobody can see.
-     */
-    @Query("SELECT * FROM app_notification ORDER BY createdAt DESC")
-    fun getAllNotifications(): Flow<List<AppNotification>>
-
     @Query("SELECT COUNT(*) FROM app_notification WHERE targetRole = :role AND isRead = 0")
     fun getUnreadCountForRole(role: String): Flow<Int>
 
@@ -37,9 +29,6 @@ interface NotificationDao {
 
     @Query("UPDATE app_notification SET isRead = 1 WHERE targetRole = :role")
     suspend fun markAllAsReadForRole(role: String)
-
-    @Query("UPDATE app_notification SET isRead = 1")
-    suspend fun markAllAsRead()
 
     @Query("UPDATE app_notification SET isRead = 1")
     suspend fun markAllAsRead()
